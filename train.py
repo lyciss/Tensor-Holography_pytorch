@@ -12,6 +12,7 @@ import torchvision.transforms as transforms
 from models import TensorHoloModel
 import random
 import torch.backends.cudnn as cudnn
+import imageio
 
 gc.collect()
 torch.cuda.empty_cache()
@@ -29,25 +30,25 @@ um = 1e-6
 mm = 1e-3
 cm = 1e-2
 
-TRAIN_RGB_DIR="C:/python/HOLOGRAM/data/train/rgb/*.png"
-TRAIN_DPT_DIR="C:/python/HOLOGRAM/data/train/depth2/*.bmp"
-TRAIN_AMP_DIR="C:/python/HOLOGRAM/data/train/amp/"+"*.bmp"
-TRAIN_PHS_DIR="C:/python/HOLOGRAM/data/train/phs/"+"*.bmp"
+TRAIN_RGB_DIR="E:/datasets/tensorholography/data/"
+TRAIN_DPT_DIR="E:/datasets/tensorholography/data/"
+TRAIN_AMP_DIR="E:/datasets/tensorholography/data/train_384/amp/" + "*.exr"
+TRAIN_PHS_DIR="E:/datasets/tensorholography/data/train_384/phs/" + "*.exr"
 TRAIN_LENGTH=3800
 
-TEST_RGB_DIR="C:/python/HOLOGRAM/data/test/rgb/*.png"
-TEST_DPT_DIR="C:/python/HOLOGRAM/data/test/depth2/*.bmp"
-TEST_AMP_DIR="C:/python/HOLOGRAM/data/test/amp/*.bmp"
-TEST_PHS_DIR="C:/python/HOLOGRAM/data/test/phs/*.bmp"
+TEST_RGB_DIR="E:/datasets/tensorholography/data/test_384/img/*.exr"
+TEST_DPT_DIR="E:/datasets/tensorholography/data/test_384/img/*.exr"
+TEST_AMP_DIR="E:/datasets/tensorholography/data/test_384/img/*.exr"
+TEST_PHS_DIR="E:/datasets/tensorholography/data/test_384/img/*.exr"
 TEST_LENGTH=200
 
-CKPT_DIR="C:/python/HOLOGRAM/ckpt/"
-RESULTS_DIR="C:/python/HOLOGRAM/results/"
+CKPT_DIR="C:/Users/lycis/Desktop/git/Tensor-Holography_pytorch/ckpt/"
+RESULTS_DIR="E:/datasets/tensorholography/data/"
 
-EVAL_RGB="C:/python/HOLOGRAM/data/eval/rgb.png"
-EVAL_DPT="C:/python/HOLOGRAM/data/eval/dpt.bmp"
+EVAL_RGB="C:/python/HOLOGRAM/data/eval/rgb.exr"
+EVAL_DPT="C:/python/HOLOGRAM/data/eval/dpt.exr"
 
-BATCH_SIZE=2
+BATCH_SIZE=20
 EPOCH=1001
 
 TEST_CKPT_NAME='tensorholo.pt'
@@ -63,7 +64,7 @@ def rgb_file_list(is_test):
         num2=TRAIN_LENGTH
     rgb_list=list()
     for img_idx in range(num1, num2):
-        rgb_path='./data/'+typ+'/rgb/'+str(img_idx)+'.png'
+        rgb_path=TRAIN_RGB_DIR+typ+'_384'+'/img/'+str("%04d" % img_idx)+'.exr'
         rgb_list.append(rgb_path)
     return rgb_list
 
@@ -78,7 +79,7 @@ def dpt_file_list(is_test):
         num2=TRAIN_LENGTH
     dpt_list=list()
     for img_idx in range(num1, num2):
-        dpt_path='./data/'+typ+'/dpt/'+str(img_idx)+'.bmp'
+        dpt_path=TRAIN_RGB_DIR+typ+'_384'+'/depth/'+str("%04d" % img_idx)+'.exr'
         dpt_list.append(dpt_path)
     return dpt_list
 
@@ -93,7 +94,7 @@ def amp_file_list(is_test):
         num2=TRAIN_LENGTH
     amp_list=list()
     for img_idx in range(num1, num2):
-        amp_path='./data/'+typ+'/amp/Amp_'+str(img_idx)+'.bmp'
+        amp_path=TRAIN_RGB_DIR+typ+'_384'+'/amp/'+str("%04d" % img_idx)+'.exr'
         amp_list.append(amp_path)
     return amp_list
 
@@ -108,7 +109,7 @@ def phs_file_list(is_test):
         num2=TRAIN_LENGTH
     phs_list=list()
     for img_idx in range(num1, num2):
-        phs_path='./data/'+typ+'/phs/Phase_'+str(img_idx)+'.bmp'
+        phs_path=TRAIN_RGB_DIR+typ+'_384'+'/phs/'+str("%04d" % img_idx)+'.exr'
         phs_list.append(phs_path)
     return phs_list    
 
@@ -134,9 +135,10 @@ class TensorHoloDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         rgb_path=self.rgb_list[index]
         #rgb=Image.open(rgb_path)
-        rgb=cv2.imread(rgb_path)
+        rgb=imageio.v3.imread(rgb_path)
+        rgb=rgb.squeeze(0)
         #rgb=rgb.convert("RGB")
-        rgb=cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
+        #rgb=cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
         #rgb=np.asarray(rgb, dtype=np.uint8)
         #rgb=Image.open(rgb)
         '''
@@ -149,16 +151,21 @@ class TensorHoloDataset(torch.utils.data.Dataset):
 
         dpt_path=self.dpt_list[index]
         #dpt=Image.open(dpt_path)
-        dpt=cv2.imread(dpt_path)
-        dpt=cv2.cvtColor(dpt, cv2.COLOR_BGR2GRAY)
+        dpt=imageio.v3.imread(dpt_path)
+        dpt = dpt.squeeze(0)
+        dpt = dpt[..., 0]
+        #dpt=cv2.cvtColor(dpt, cv2.COLOR_BGR2GRAY)
         dpt=self.transform(dpt)
 
 
         amp_path=self.amp_list[index]
         #amp=Image.open(amp_path)
-        amp=cv2.imread(amp_path)
+        amp=imageio.v3.imread(amp_path)
+        amp = amp.squeeze(0)
+
+
         #amp=amp.convert("RGB")
-        amp=cv2.cvtColor(amp, cv2.COLOR_BGR2RGB)
+        #amp=cv2.cvtColor(amp, cv2.COLOR_BGR2RGB)
         '''
         ar=amp.copy()
         #ar=np.asarray(ar, dtype=np.uint8)
@@ -170,9 +177,11 @@ class TensorHoloDataset(torch.utils.data.Dataset):
 
         phs_path=self.phs_list[index]
         #phs=Image.open(phs_path)
-        phs=cv2.imread(phs_path)
+        phs=imageio.v3.imread(phs_path)
+        phs = phs.squeeze(0)
+
         #phs=phs.convert("RGB")
-        phs=cv2.cvtColor(phs, cv2.COLOR_BGR2RGB)
+        #phs=cv2.cvtColor(phs, cv2.COLOR_BGR2RGB)
         '''
         pr=phs.copy()
         #pr=np.asarray(pr, dtype=np.uint8)
@@ -198,7 +207,7 @@ net=TensorHoloModel()
 net=net.to(device)
 net=torch.nn.DataParallel(net)
 
-learning_rate=1e-4
+learning_rate=1e-3
 filename='tensorholo.pt'
 
 criterion = nn.MSELoss()
@@ -225,6 +234,7 @@ print(std)
 '''
 def train(epoch):
     train_dataset=TensorHoloDataset(rgb_list=rgb_list, dpt_list=dpt_list, amp_list=amp_list, phs_list=phs_list, transform=transforms.Compose([transforms.ToTensor()]))
+
     train_loader=torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     print('\n[ Train Epoch: %d ]'%epoch)
@@ -239,41 +249,12 @@ def train(epoch):
         optimizer.zero_grad()
 
         output_amp, output_phs=net(train_rgb, train_dpt)
-        output_amp=output_amp[None, :, :, :]
-        output_phs=output_phs[None, :, :, :]
-        #'''
-        loss_amp=criterion(output_amp, train_amp)
-        loss_phs=criterion(output_phs, train_phs)
-        loss=loss_amp+loss_phs
-        #'''
-        '''
-        delta=torch.atan2(torch.sin(output_phs-train_phs), torch.cos(output_phs-train_phs))
-        criterion1=output_amp-train_amp*torch.exp(1j*(delta-delta.conj()))
-        criterion1=torch.linalg.norm(criterion1, ord=2, dim=1)
-        loss=torch.sqrt(torch.sum(criterion1**2))
-        '''
-        '''
-        WIDTH=192
-        HEIGHT=192
-        near=0.00000000000000001*cm
-        far=1*mm
-        pitch_w=1/(8*um)
-        pitch_h=1/(8*um)
-        BETA=0.35
 
-        sm=np.arange(-WIDTH/2, WIDTH/2)
-        sn=np.arange(-HEIGHT/2, HEIGHT/2)
-        m,n = np.meshgrid(sm, sn)
-        lambda_=[638*nm, 520*nm, 450*nm]
-            
-        def ASM(H_target, dt):
-            kernel=np.exp(2j*np.pi*(dt)*np.sqrt(lambda_**(-2)-(m/pitch_w)**2-(n/pitch_h)**2))
-            # phase_shift = 2 * (np.pi * (1 / self.wavelengths) * tf.sqrt(1. - (self.wavelengths * self.fx) ** 2 - (self.wavelengths * self.fy) ** 2))
-            u1=np.fft.fftshift(np.fft.fft2(H_target))
-            return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(u1*kernel)))
-        criterion2+=np.exp(BETA*(2*((far-near)/2)-(dt-Dt)))*(np.absolute(ASM(output_amp*np.exp(1j*output_phs), dt))-np.absolute(ASM(train_amp*np.exp(1j*train_phs), dt))+np.gradient(np.absolute(ASM(output_amp*np.exp(1j*output_phs) ,dt)))-np.gradient(np.absolute(ASM(train_amp*np.exp(1j*train_phs), dt))))
-        criterion2=np.linalg.norm(criterion2, axis=1, ord=1)
-        '''
+        #'''
+        loss_amp = criterion(output_amp, train_amp)
+        loss_phs =criterion(output_phs, train_phs)
+        loss=loss_amp+loss_phs
+
         loss.backward()
 
         optimizer.step()
@@ -309,7 +290,7 @@ def test(epoch):
     test_loss=0
 
     for batch_idx, (test_rgb, test_dpt, test_amp, test_phs) in enumerate(test_loader):
-        
+
         test_rgb=test_rgb.to(device).float()
         test_dpt=test_dpt.to(device).float()
         test_amp=test_amp.to(device).float()
